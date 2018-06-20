@@ -1,9 +1,15 @@
 #include "statistic.h"
 
-// --- CONSTRUCTOR ---
-statistic::statistic():exit(0),stop(0) {
-    // you could copy data from constructor arguments to internal variables here.
+QPair<quint32,quint64> & operator+=(QPair<quint32,quint64> & l,const QPair<quint32,quint64> & r) {
+    l.first += r.first;
+    l.second += r.second;
+    return l;
+}
 
+// --- CONSTRUCTOR ---
+statistic::statistic():
+    in_progress(0),exit(0),stopped(0){
+    // you could copy data from constructor arguments to internal variables here.
 }
 
 // --- DECONSTRUCTOR ---
@@ -14,21 +20,23 @@ statistic::~statistic() {
 
 // --- PROCESS ---
 // Start processing data.
-void statistic::process(const QString& dir_name, QVector<suffix> *vec) {
+void statistic::process(const QString& dir_name) {
     // allocate resources using new here
-    QPair<quint32,quint64> Count_Size(0,0);//1st - all files cnt, 2nd - all file size
 
-    if(stop) stop = false;
-    vec->clear();
-    create_config(dir_name, vec,&Count_Size);//recursive
+    QPair<quint32,quint64> Count_Size(0,0);//1st - all files cnt, 2nd - all file size
+    if(stopped) stopped = false;
+    map_suf.clear();
+    in_progress = true;
+    create_config(dir_name, Count_Size);//recursive
     qDebug() << "size = " << Count_Size.second;
-    emit stat_finish(stop);
+    in_progress = false;
+    emit stat_finish(stopped, map_suf);
 
 }
 
-bool statistic::create_config(const QString& dir_name, QVector<suffix> *vec, QPair<quint32,quint64> *Count_Size){
+bool statistic::create_config(const QString& dir_name,QPair<quint32,quint64> &Count_Size){
     if(exit){emit finished(); return 0;}//close thread when main closed
-    if(stop){return 0;}//stop creating
+    if(stopped){return 0;}//stop creating
 
     QDir dir(dir_name);
     QFileInfoList info_list = dir.entryInfoList(QDir::Hidden | QDir::NoDotAndDotDot | QDir::AllEntries);
@@ -36,37 +44,26 @@ bool statistic::create_config(const QString& dir_name, QVector<suffix> *vec, QPa
     {
         auto path = fileInfo.absoluteFilePath();
         if(fileInfo.isDir()){
-            create_config(path,vec,Count_Size);//recursive
+            create_config(path, Count_Size);//recursive
         }
         else{
-            Count_Size->first++;//cnt files
-            Count_Size->second += fileInfo.size();//all size
+            Count_Size += {1,fileInfo.size()};
 
-            //suffix group
-            bool new_suffix = 1;
-            for(quint64 vec_it(0); vec_it < vec->size(); vec_it++){
-                if((*vec)[vec_it].name == fileInfo.suffix()){
-                    (*vec)[vec_it].cnt++;
-                    (*vec)[vec_it].size += fileInfo.size();
-                    new_suffix=0;
-                }
-            }
-            if(new_suffix)
-                vec->push_back({fileInfo.suffix(),1,fileInfo.size()});            
+            map_suf[fileInfo.suffix()] += {1,fileInfo.size()};//add suffix info
         }
     }
 
-    if(!stop && !exit) emit return_size(*Count_Size);
-    return true;
+    if(!stopped && !exit) emit return_size(Count_Size,map_suf.size());
+    return 1;
 }
 
 
 void statistic::set_stop(const bool i){
-    stop = i;
+    stopped = i;
 }
 
-bool statistic::get_stop(){
-    return stop;
+bool statistic::get_progress(){
+    return in_progress;
 }
 
 void statistic::set_exit(const bool i){

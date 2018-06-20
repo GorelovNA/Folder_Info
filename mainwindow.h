@@ -13,7 +13,7 @@ class MainWindow : public QMainWindow
 
 public:
     QSortFilterProxyModel *fileSystemProxyModel;
-    QVector<suffix> vec;
+    //QVector<suffix> vec;
 
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
@@ -21,8 +21,8 @@ public:
 private slots:
     void on_treeView_clicked(const QModelIndex &index);
 
-    void return_size(const QPair<quint32, quint64> &Count_Size);
-    void stat_finish(bool stop);
+    void return_size(const QPair<quint32, quint64> &Count_Size, const quint32 &suff_cnt);
+    void stat_finish(bool stop, const QMap<QString,QPair<quint32,quint64>> &map_suf);
 
 private:
     Ui::MainWindow *ui;
@@ -35,7 +35,7 @@ private:
     statistic* stat;
 
 signals:
-    void start_statistic(const QString& dir_name, QVector<suffix> *vec);
+    void start_statistic(const QString& dir_name);
 
 
 };

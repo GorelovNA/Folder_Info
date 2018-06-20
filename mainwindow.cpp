@@ -69,15 +69,15 @@ bool FileSystemModelFilterProxyModel::filterAcceptsRow(int sourceRow, const QMod
 }
 
 
-void MainWindow::return_size(const QPair<quint32,quint64> &Count_Size){
+void MainWindow::return_size(const QPair<quint32,quint64> &Count_Size, const quint32 &suff_cnt){
     QLocale locale;
     QString valueText = locale.formattedDataSize(Count_Size.second,2,locale.DataSizeTraditionalFormat);
 
     ui->label_full_size->setText("Размер: "+ valueText +" (" + QString::number(Count_Size.second)+" байт), Файлов: " + QString::number(Count_Size.first));
-    ui->label_cnt_cuff->setText("Уникальных расширений найдено: "+ QString::number(vec.size()));
+    ui->label_cnt_cuff->setText("Уникальных расширений найдено: "+ QString::number(suff_cnt));
 }
 
-void MainWindow::stat_finish(bool stop){
+void MainWindow::stat_finish(bool stop, const QMap<QString,QPair<quint32,quint64>> &map_suf){
     if(!stop){//finish
         qDebug() << "готово (ready)";
         movie->stop();
@@ -88,28 +88,31 @@ void MainWindow::stat_finish(bool stop){
         //build suffix group
         QLocale locale;
         ui->treeWidget->setSortingEnabled(0);
-        for(quint32 i(0); i < vec.size(); i++){
+
+        QMapIterator<QString,QPair<quint32,quint64>> i(map_suf);
+        while (i.hasNext()) {
+            i.next();
+
             QTreeWidgetItem * item = new QTreeWidgetItem();
-            item->setText(0,vec[i].name);
-            item->setData(1,Qt::DisplayRole,vec[i].cnt);
-            item->setText(2,locale.formattedDataSize(vec[i].size,2,locale.DataSizeTraditionalFormat));
-            item->setText(3,locale.formattedDataSize(vec[i].size/vec[i].cnt,2,locale.DataSizeTraditionalFormat));
+            item->setText(0,i.key());
+            item->setData(1,Qt::DisplayRole,i.value().first);
+            item->setText(2,locale.formattedDataSize(i.value().second,2,locale.DataSizeTraditionalFormat));
+            item->setText(3,locale.formattedDataSize(i.value().second/i.value().first,2,locale.DataSizeTraditionalFormat));
             ui->treeWidget->addTopLevelItem(item);
         }
+
         ui->treeWidget->setSortingEnabled(1);
         ui->treeWidget->QTreeView::sortByColumn(0,Qt::AscendingOrder);// sortByColumn(0);// QTreeView::sortByColumn(0);
         ui->treeWidget->resizeColumnToContents(0);
         ui->treeWidget->resizeColumnToContents(1);
         ui->treeWidget->resizeColumnToContents(2);
         ui->treeWidget->resizeColumnToContents(3);
-    }    
+    }
 }
 
 void MainWindow::on_treeView_clicked(const QModelIndex &index)
-{    
-    //qDebug() << "";
-    //stop stat if running
-    if(vec.size()>0){
+{        
+    if(stat->get_progress()){//stop stat if running
         stat->set_stop(1);
     }
 
@@ -135,7 +138,7 @@ void MainWindow::on_treeView_clicked(const QModelIndex &index)
     ui->groupBox_dir->setTitle(path);
 
     qDebug() << "выдаем (wait)";
-    emit start_statistic(path, &vec);
+    emit start_statistic(path);
 }
 
 
